@@ -372,8 +372,25 @@ def make_microduck_jump_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         func=microduck_mdp.reset_action_history,
         mode="reset",
     )
-    # Zero the jump frontier/latch accounting on every reset. The spawn
-    # itself is the base velocity-env standing reset (HOME pose).
+    # Explicit STANDING spawn (run-2 fix): the base reset leaves the root at
+    # the entity default (z≈0 → collapsed heap), so run 1 learned to jump
+    # from a floor pose and holds still when deployed from a clean stand.
+    # Reuse the roulade standing bucket: z 0.11–0.12, ±5° tilt noise, HOME
+    # joints — exactly the state the browser hands the policy.
+    cfg.events["set_jump_spawn"] = EventTermCfg(
+        func=microduck_mdp.reset_roulade_state,
+        mode="reset",
+        params={
+            "standing_prob":     1.0,
+            "midroll_prob":      0.0,
+            "standing_z_min":    0.11,
+            "standing_z_max":    0.12,
+            "standing_tilt_max": math.radians(5.0),
+            "forward_vel_range": (0.0, 0.0),
+        },
+    )
+    # Zero the jump frontier/latch accounting on every reset (runs after the
+    # spawn event — dict insertion order).
     cfg.events["reset_jump_state"] = EventTermCfg(
         func=microduck_mdp.reset_jump_state,
         mode="reset",
